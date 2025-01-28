@@ -37,7 +37,7 @@ class MusicRecommendationFungus:
 
         # Load or train the BERT model
         self.model_name = "bert-music-recommender"
-        self.machine_learning_service = QuestionAnsweringService(self.knowledge_graph, user_ratings_csv='user_ratings.csv')
+        self.machine_learning_service = QuestionAnsweringService()
 
         # Attempt to load a saved model state
         saved_model = self.knowledge_graph.load_model(self.model_name, self.machine_learning_service.model)
@@ -47,6 +47,7 @@ class MusicRecommendationFungus:
         else:
             logging.info("[TRAINING] No saved model found; starting fresh training.")
             self.machine_learning_service.train_model()
+            logging.info("[TRAINING] Finished training.")
             self.knowledge_graph.save_model(self.model_name, self.machine_learning_service.model)
 
         self.feedback_threshold = float(os.getenv("FEEDBACK_THRESHOLD", 0.5))
