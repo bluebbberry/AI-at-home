@@ -8,7 +8,7 @@ from rdf_knowledge_graph import RDFKnowledgeGraph
 from mastodon_client import MastodonClient
 import datetime
 import random
-from machine_learning_service import MLService
+from machine_learning_service import QuestionAnsweringService
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -33,14 +33,14 @@ class MusicRecommendationFungus:
         self.knowledge_graph = RDFKnowledgeGraph(mastodon_client=self.mastodon_client)
 
         # Insert songs and question-answer pairs into the RDF knowledge graph
-        self.knowledge_graph.insert_qa_pairs_from_csv('qa_pairs.csv')  # New functionality
+        self.knowledge_graph.store_qa_pair('What is a popular animal?', 'Rabbit')  # New functionality
 
         # Load or train the BERT model
         self.model_name = "bert-music-recommender"
-        self.machine_learning_service = MLService(self.knowledge_graph, user_ratings_csv='user_ratings.csv')
+        self.machine_learning_service = QuestionAnsweringService(self.knowledge_graph, user_ratings_csv='user_ratings.csv')
 
         # Attempt to load a saved model state
-        saved_model = self.knowledge_graph.retrieve_model_state(self.model_name)
+        saved_model = self.knowledge_graph.load_model(self.model_name, self.machine_learning_service.model)
         if saved_model:
             self.machine_learning_service.model.set_state(saved_model)
             logging.info(f"[LOAD] Loaded saved model '{self.model_name}' from RDF knowledge graph.")
@@ -116,7 +116,7 @@ class MusicRecommendationFungus:
         fresh_statuses = filter(lambda s: s["id"] not in self.mastodon_client.ids_of_replied_statuses, statuses)
         for status in fresh_statuses:
             if "[FUNGUS]" not in status['content']:
-                song_titles = self.machine_learning_service.get_song_recommendations(self.machine_learning_service.extract_song_from_string(status['content']), 3)
+                song_titles = self.machine_learning_service.answer_question(status['content'], "this is my context")
                 self.mastodon_client.reply_to_status(status['id'], status['account']['username'], "[FUNGUS] " + str(song_titles))
         # Count feedback
         num_of_statuses_sent = len(self.mastodon_client.ids_of_replied_statuses)
@@ -135,8 +135,8 @@ class MusicRecommendationFungus:
             self.feedback_threshold *= random.uniform(0.9, 1.1)  # Randomly adjust threshold
             logging.info(f"[EVOLVE] Feedback threshold mutated from {old_threshold} to {self.feedback_threshold}")
 
-    def get_song_recommendations(self, song_name):
-        recommendations = self.machine_learning_service.get_song_recommendations(song_name, 3)
+    def get_song_recommendations(self, question):
+        recommendations = self.machine_learning_service.answer_question(question, 3)
         if isinstance(recommendations, (list, tuple)):
             recommendations = [rec.tolist() if hasattr(rec, 'tolist') else rec for rec in recommendations]
         return recommendations

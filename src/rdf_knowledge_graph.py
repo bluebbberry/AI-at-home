@@ -6,8 +6,9 @@ import base64
 import torch
 import os
 from dotenv import load_dotenv
-import csv
-import pandas as pd
+from SPARQLWrapper import SPARQLWrapper, POST, JSON
+from rdflib import URIRef, Literal
+import logging
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -61,6 +62,7 @@ class RDFKnowledgeGraph:
             state_dict = {k: torch.tensor(v) for k, v in state_dict.items()}  # Convert lists back to tensors
             model.load_state_dict(state_dict)
             logging.info(f"Model '{model_name}' loaded successfully.")
+            return model
         else:
             logging.warning(f"Model '{model_name}' not found in the knowledge base.")
 
@@ -129,3 +131,99 @@ class RDFKnowledgeGraph:
         except Exception as e:
             logging.error(f"Error executing select query: {e}")
             return []
+
+    def look_for_song_data_in_statuses_to_insert(self, messages):
+        """
+        Parses messages for general knowledge data (e.g., facts, Q&A) and inserts it into the RDF graph using SPARQL.
+        """
+        sparql_endpoint = SPARQLWrapper(self.fuseki_url)
+        sparql_endpoint.setMethod('POST')
+
+        for message in messages:
+            content = message['content']
+            if "question:" in content and "answer:" in content:
+                try:
+                    # Example format: "question: What is the capital of France? answer: Paris"
+                    question_start = content.find("question:") + len("question:")
+                    answer_start = content.find("answer:", question_start)
+                    question = content[question_start:answer_start].strip()
+                    answer = content[answer_start + len("answer:"):].strip()
+
+                    # SPARQL Update to insert the Q&A pair
+                    query = f"""
+                    PREFIX ns: <http://example.org/>
+                    INSERT DATA {{
+                        ns:{question.replace(' ', '_')} a ns:Question ;
+                            ns:text "{question}" ;
+                            ns:answer "{answer}" .
+                    }}
+                    """
+                    sparql_endpoint.setQuery(query)
+                    sparql_endpoint.query()
+                    logging.info(f"[INSERT] Inserted Q&A pair: '{question}' -> '{answer}' into the RDF graph.")
+                except Exception as e:
+                    logging.error(f"[ERROR] Failed to insert Q&A data: {e}", exc_info=True)
+
+    def on_found_group_to_join(self, link_to_model):
+        """
+        Handles the event of finding a new knowledge repository by joining and updating the local graph using SPARQL.
+        """
+        sparql_endpoint = SPARQLWrapper(self.fuseki_url)
+        sparql_endpoint.setMethod('POST')
+
+        try:
+            group_uri = URIRef(link_to_model)
+
+            # SPARQL Update to add metadata for joining the group
+            query = f"""
+            PREFIX ns: <http://example.org/>
+            INSERT DATA {{
+                <{group_uri}> a ns:KnowledgeRepository ;
+                              ns:joined true .
+            }}
+            """
+            sparql_endpoint.setQuery(query)
+            sparql_endpoint.query()
+            logging.info(f"[JOIN] Successfully joined knowledge repository: {link_to_model}")
+        except Exception as e:
+            logging.error(f"[ERROR] Failed to join knowledge repository: {e}", exc_info=True)
+
+    def fetch_all_model_from_knowledge_base(self, link_to_model):
+        """
+        Fetches all knowledge entries from the RDF graph for a specific repository link using SPARQL.
+        """
+        sparql_endpoint = SPARQLWrapper(self.fuseki_url)
+        sparql_endpoint.setReturnFormat(JSON)
+
+        try:
+            query = f"""
+            PREFIX ns: <http://example.org/>
+            SELECT ?entry
+            WHERE {{
+                <{link_to_model}> ns:containsEntry ?entry .
+            }}
+            """
+            sparql_endpoint.setQuery(query)
+            results = sparql_endpoint.query().convert()
+
+            knowledge_entries = [result['entry']['value'] for result in results['results']['bindings']]
+            logging.info(f"[FETCH] Retrieved {len(knowledge_entries)} knowledge entries from the knowledge graph.")
+            return knowledge_entries
+        except Exception as e:
+            logging.error(f"[ERROR] Failed to fetch knowledge entries: {e}", exc_info=True)
+            return []
+
+    def aggregate_model_states(self, local_model_state, all_models):
+        """
+        Aggregates knowledge data from the local graph and other repositories.
+        """
+        try:
+            # Aggregation logic: combine unique entries
+            aggregated_state = set(local_model_state)
+            for model in all_models:
+                aggregated_state.update(model)
+            logging.info("[AGGREGATE] Aggregated knowledge entries successfully.")
+            return list(aggregated_state)
+        except Exception as e:
+            logging.error(f"[ERROR] Failed to aggregate knowledge entries: {e}", exc_info=True)
+            return local_model_state
