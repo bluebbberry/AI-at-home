@@ -25,6 +25,7 @@ class RDFKnowledgeGraph:
         """
         Inserts the model parameters into the Fuseki knowledge base using base64 encoding.
         """
+        logging.info(f"Saving model in knowledge base: {model_name}")
         state_dict = {k: v.cpu().tolist() for k, v in model.state_dict().items()}  # Convert tensors to lists
         state_json = json.dumps(state_dict)
         state_encoded = base64.b64encode(state_json.encode('utf-8')).decode('utf-8')

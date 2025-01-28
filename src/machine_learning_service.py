@@ -1,5 +1,5 @@
 import logging
-from transformers import BertForQuestionAnswering, BertTokenizerFast, Trainer, TrainingArguments
+from transformers import DistilBertForQuestionAnswering, DistilBertTokenizerFast, TrainingArguments, Trainer
 import torch
 
 # Initialize logging
@@ -14,8 +14,8 @@ class QuestionAnsweringService:
         self.lr = lr
 
         # Load model and tokenizer
-        self.tokenizer = BertTokenizerFast.from_pretrained(model_name)
-        self.model = BertForQuestionAnswering.from_pretrained(model_name)
+        self.tokenizer = DistilBertTokenizerFast.from_pretrained(model_name)
+        self.model = DistilBertForQuestionAnswering.from_pretrained(model_name)
 
     def preprocess_data(self):
         # Hard-coded simple dataset
@@ -120,7 +120,7 @@ class QuestionAnsweringService:
 
 # Example Usage
 if __name__ == "__main__":
-    qa_service = SimpleQAService()
+    qa_service = QuestionAnsweringService()
 
     # Train the model
     qa_service.train_model()
