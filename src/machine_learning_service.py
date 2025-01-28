@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class QuestionAnsweringService:
-    def __init__(self, model_name='bert-base-uncased', num_epochs=3, batch_size=2, lr=3e-5):
+    def __init__(self, model_name='distilbert-base-uncased', num_epochs=3, batch_size=2, lr=3e-5):
         self.model_name = model_name
         self.num_epochs = num_epochs
         self.batch_size = batch_size
