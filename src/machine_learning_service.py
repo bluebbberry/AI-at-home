@@ -37,9 +37,28 @@ class QuestionAnsweringService:
 
         def preprocess_function(example):
             inputs = self.tokenizer(example['question'], example['context'], truncation=True, padding='max_length',
-                                    max_length=512)
-            inputs['start_positions'] = example['answers']['answer_start'][0]
-            inputs['end_positions'] = inputs['start_positions'] + len(example['answers']['text'][0])
+                                    max_length=512, return_offsets_mapping=True)
+
+            # Find the start and end character positions in the tokenized text
+            offset_mapping = inputs.pop("offset_mapping")
+
+            answer_start_char = example['answers']['answer_start'][0]
+            answer_end_char = answer_start_char + len(example['answers']['text'][0])
+
+            # Convert character positions to token indices
+            start_positions = end_positions = None
+            for idx, (start, end) in enumerate(offset_mapping):
+                if start_positions is None and start <= answer_start_char < end:
+                    start_positions = idx
+                if end_positions is None and start < answer_end_char <= end:
+                    end_positions = idx
+
+            if start_positions is None or end_positions is None:
+                start_positions, end_positions = 0, 0  # Default to first token if misalignment occurs
+
+            inputs["start_positions"] = start_positions
+            inputs["end_positions"] = end_positions
+
             return inputs
 
         train_dataset = Dataset.from_list([preprocess_function(example) for example in dataset['train']])
@@ -70,20 +89,30 @@ class QuestionAnsweringService:
 
     def answer_question(self, question, context):
         inputs = self.tokenizer(question, context, return_tensors="pt", truncation=True, padding=True, max_length=512)
-        if "input_ids" not in inputs:
-            raise ValueError("Tokenizer did not return input_ids. Check the input format.")
 
         with torch.no_grad():
             outputs = self.model(**inputs)
 
-        start_index = torch.argmax(outputs.start_logits, dim=1).item()
-        end_index = torch.argmax(outputs.end_logits, dim=1).item()
+        start_scores = outputs.start_logits
+        end_scores = outputs.end_logits
 
-        if start_index >= end_index:
+        start_index = torch.argmax(start_scores, dim=1).item()
+        end_index = torch.argmax(end_scores, dim=1).item()
+
+        if start_index >= end_index or start_index < 0 or end_index >= inputs["input_ids"].size(1):
             return "Unable to determine answer."
 
-        answer_tokens = inputs['input_ids'][0][start_index:end_index + 1]
-        return self.tokenizer.decode(answer_tokens, skip_special_tokens=True)
+        # Convert token indices to actual words
+        answer_tokens = inputs["input_ids"][0][start_index:end_index + 1]
+        answer = self.tokenizer.decode(answer_tokens, skip_special_tokens=True)
+
+        # Print debug information
+        print(f"Question: {question}")
+        print(f"Context: {context}")
+        print(f"Predicted Start Index: {start_index}, End Index: {end_index}")
+        print(f"Predicted Answer: {answer}")
+
+        return answer
 
     def save_model(self, model):
         # Apply quantization before saving
@@ -107,4 +136,3 @@ if __name__ == "__main__":
     context = "The capital of France is Paris."
     answer = qa_service.answer_question(question, context)
     print(f"Answer: {answer}")
-    qa_service.save_model()
