@@ -21,14 +21,14 @@ class RDFKnowledgeGraph:
         self.mastodon_client = mastodon_client
         self.sparql = SPARQLWrapper(self.fuseki_url)
 
-    def save_model(self, model_name, model):
+    def save_model(self, model_name, model_encoded):
         """
         Inserts the model parameters into the Fuseki knowledge base using base64 encoding.
         """
         logging.info(f"Saving model in knowledge base: {model_name}")
-        state_dict = {k: v.cpu().tolist() for k, v in model.state_dict().items()}  # Convert tensors to lists
-        state_json = json.dumps(state_dict)
-        state_encoded = base64.b64encode(state_json.encode('utf-8')).decode('utf-8')
+        #state_dict = {k: v.cpu().tolist() for k, v in model.state_dict().items()}  # Convert tensors to lists
+        #state_json = json.dumps(state_dict)
+        #state_encoded = base64.b64encode(state_json.encode('utf-8')).decode('utf-8')
 
         sparql_insert_query = f'''
         PREFIX ex: <http://example.org/>
@@ -36,7 +36,7 @@ class RDFKnowledgeGraph:
 
         INSERT DATA {{
             ex:{model_name} a ex:BERTModel ;
-                            ex:modelState "{state_encoded}" .
+                            ex:modelState "{model_encoded}" .
         }}
         '''
         self._execute_update_query(sparql_insert_query)
