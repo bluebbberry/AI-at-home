@@ -1,3 +1,5 @@
+models/**
+
 .env
 src/results/**
 

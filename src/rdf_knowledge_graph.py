@@ -38,21 +38,23 @@ class RDFKnowledgeGraph:
     def load_model(self, model_name, model):
         if len(os.listdir("../models")) > 0:
             random_file = random.choice(os.listdir("../models"))
-            results = self.read_from_file_content(random_file)
+            state_encoded = self.read_from_file_content(random_file)
+            if state_encoded:
+                state_dict = self.load_model_from_encoded_states(state_encoded)
+                model.load_state_dict(state_dict)
+                logging.info(f"Model '{model_name}' loaded successfully.")
+                return model
+            else:
+                logging.warning(f"Model '{model_name}' not found in the knowledge base.")
+                return None
         else:
             return None
 
-        if results:
-            state_encoded = results
-            state_json = base64.b64decode(state_encoded).decode('utf-8')
-            state_dict = json.loads(state_json)
-            state_dict = {k: torch.tensor(v) for k, v in state_dict.items()}  # Convert lists back to tensors
-            model.load_state_dict(state_dict)
-            logging.info(f"Model '{model_name}' loaded successfully.")
-            return model
-        else:
-            logging.warning(f"Model '{model_name}' not found in the knowledge base.")
-            return None
+    def load_model_from_encoded_states(self, encoded_states):
+        state_json = base64.b64decode(encoded_states).decode('utf-8')
+        state_dict = json.loads(state_json)
+        state_dict = {k: torch.tensor(v) for k, v in state_dict.items()}  # Convert lists back to tensors
+        return state_dict
 
     def store_qa_pair(self, question, answer):
         """
