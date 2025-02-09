@@ -10,6 +10,8 @@ from SPARQLWrapper import SPARQLWrapper, POST, JSON
 from rdflib import URIRef, Literal
 import logging
 import random
+from os import listdir
+from os.path import isfile, join
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -30,15 +32,15 @@ class RDFKnowledgeGraph:
         with open(file_name, "w") as text_file:
             text_file.write(text)
 
-    def read_from_file_content(self, filename):
-        with open(filename) as f:
+    def read_from_model_file_content(self, filename):
+        with open("../models/" + filename) as f:
             s = f.read()
         return s
 
     def load_model(self, model_name, model):
         if len(os.listdir("../models")) > 0:
             random_file = random.choice(os.listdir("../models"))
-            state_encoded = self.read_from_file_content(random_file)
+            state_encoded = self.read_from_model_file_content(random_file)
             if state_encoded:
                 state_dict = self.load_model_from_encoded_states(state_encoded)
                 model.load_state_dict(state_dict)
@@ -179,24 +181,9 @@ class RDFKnowledgeGraph:
             logging.error(f"[ERROR] Failed to join knowledge repository: {e}", exc_info=True)
 
     def fetch_all_model_from_knowledge_base(self, link_to_model):
-        """
-        Fetches all knowledge entries from the RDF graph for a specific repository link using SPARQL.
-        """
-        sparql_endpoint = SPARQLWrapper(self.fuseki_url)
-        sparql_endpoint.setReturnFormat(JSON)
-
         try:
-            query = f"""
-            PREFIX ns: <http://example.org/>
-            SELECT ?entry
-            WHERE {{
-                <{link_to_model}> ns:containsEntry ?entry .
-            }}
-            """
-            sparql_endpoint.setQuery(query)
-            results = sparql_endpoint.query().convert()
-
-            knowledge_entries = [result['entry']['value'] for result in results['results']['bindings']]
+            all_files = [f for f in listdir("../models") if isfile(join("../models", f))]
+            knowledge_entries = [self.load_model_from_encoded_states(result) for result in all_files]
             logging.info(f"[FETCH] Retrieved {len(knowledge_entries)} knowledge entries from the knowledge graph.")
             return knowledge_entries
         except Exception as e:
