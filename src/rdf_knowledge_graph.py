@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from SPARQLWrapper import SPARQLWrapper, POST, JSON
 from rdflib import URIRef, Literal
 import logging
+import random
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -22,42 +23,27 @@ class RDFKnowledgeGraph:
         self.sparql = SPARQLWrapper(self.fuseki_url)
 
     def save_model(self, model_name, model_encoded):
-        """
-        Inserts the model parameters into the Fuseki knowledge base using base64 encoding.
-        """
-        logging.info(f"Saving model in knowledge base: {model_name}")
-        #state_dict = {k: v.cpu().tolist() for k, v in model.state_dict().items()}  # Convert tensors to lists
-        #state_json = json.dumps(state_dict)
-        #state_encoded = base64.b64encode(state_json.encode('utf-8')).decode('utf-8')
+        logging.info(f"Saving model to local file: {model_name}")
+        self.write_content_to_file(model_name + str(random.random()) + ".txt", model_encoded)
 
-        sparql_insert_query = f'''
-        PREFIX ex: <http://example.org/>
-        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    def write_content_to_file(self, file_name, text):
+        with open(file_name, "w") as text_file:
+            text_file.write(text)
 
-        INSERT DATA {{
-            ex:{model_name} a ex:BERTModel ;
-                            ex:modelState "{model_encoded}" .
-        }}
-        '''
-        self._execute_update_query(sparql_insert_query)
-        logging.info(f"Model '{model_name}' saved successfully.")
+    def read_from_file_content(self, filename):
+        with open(filename) as f:
+            s = f.read()
+        return s
 
     def load_model(self, model_name, model):
-        """
-        Loads the model parameters from the Fuseki knowledge base and updates the model.
-        """
-        sparql_select_query = f'''
-        PREFIX ex: <http://example.org/>
-        SELECT ?modelState
-        WHERE {{
-            ex:{model_name} a ex:BERTModel ;
-                            ex:modelState ?modelState .
-        }}
-        '''
-        results = self._execute_select_query(sparql_select_query)
+        if len(os.listdir("../models")) > 0:
+            random_file = random.choice(os.listdir("../models"))
+            results = self.read_from_file_content(random_file)
+        else:
+            return None
 
         if results:
-            state_encoded = results[0]["modelState"]["value"]
+            state_encoded = results
             state_json = base64.b64decode(state_encoded).decode('utf-8')
             state_dict = json.loads(state_json)
             state_dict = {k: torch.tensor(v) for k, v in state_dict.items()}  # Convert lists back to tensors
@@ -66,6 +52,7 @@ class RDFKnowledgeGraph:
             return model
         else:
             logging.warning(f"Model '{model_name}' not found in the knowledge base.")
+            return None
 
     def store_qa_pair(self, question, answer):
         """

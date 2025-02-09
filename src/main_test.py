@@ -21,7 +21,7 @@ class TestMusicRecommendationFungus(unittest.TestCase):
     def test_train_model(self):
         self.music_fungus.train_model()
         self.mock_ml_service.train_model.assert_called_once()
-        self.mock_knowledge_graph.save_model.assert_called_once()
+        self.mock_knowledge_graph.encode_model.assert_called_once()
 
     def test_decide_whether_to_switch_team(self):
         feedback_below_threshold = 0.4

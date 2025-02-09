@@ -48,7 +48,7 @@ class MusicRecommendationFungus:
             logging.info("[TRAINING] No saved model found; starting fresh training.")
             self.machine_learning_service.train_model()
             logging.info("[TRAINING] Finished training.")
-            self.knowledge_graph.save_model(self.model_name, self.machine_learning_service.save_model(self.machine_learning_service.model))
+            self.knowledge_graph.save_model(self.model_name, self.machine_learning_service.encode_model(self.machine_learning_service.model))
 
         self.feedback_threshold = float(os.getenv("FEEDBACK_THRESHOLD", 0.5))
         logging.info(f"[CONFIG] Feedback threshold set to {self.feedback_threshold}")
@@ -99,7 +99,7 @@ class MusicRecommendationFungus:
             self.machine_learning_service.train_model()
             model = self.machine_learning_service.model
             logging.info(f"[RESULT] Model trained successfully.")
-            self.knowledge_graph.save_model(self.model_name, self.machine_learning_service.save_model(model))
+            self.knowledge_graph.save_model(self.model_name, self.machine_learning_service.encode_model(model))
             logging.info("[STORE] Model saved to RDF Knowledge Graph")
             self.mastodon_client.post_status(f"[FUNGUS] Model updated.")
             logging.info("[NOTIFY] Status posted to Mastodon")

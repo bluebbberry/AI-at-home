@@ -114,7 +114,7 @@ class QuestionAnsweringService:
 
         return answer
 
-    def save_model(self, model):
+    def encode_model(self, model):
         # Apply quantization before saving
         quantized_model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
 
