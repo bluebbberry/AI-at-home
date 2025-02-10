@@ -1,5 +1,7 @@
 # AI@home
 
+![icons8-mushroom-64(1)](https://github.com/user-attachments/assets/94ba18ad-7f9f-40c9-9d3e-e064888dc7e5)
+
 Chatbots like ChatGPT lie on a centralized server. A federated AI chat bot distributes the learning on multiple PCs, but models are still inside silos. The mycelium goes a step further: here, AI models can freely travel across the web as agents.
 
 It is realized by adding another protocol layer on top of that of federated AI:
