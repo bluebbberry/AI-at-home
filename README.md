@@ -1,4 +1,5 @@
-![icons8-mushroom-64(1)](https://github.com/user-attachments/assets/94ba18ad-7f9f-40c9-9d3e-e064888dc7e5)
+![icons8-mushroom-64(1)](https://github.com/user-attachments/assets/8a103400-0ebc-4bc1-814c-6681f397815c)
+
 
 # AI@home
 
